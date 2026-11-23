@@ -2,15 +2,13 @@ import { useEffect, useState } from 'react';
 import { Moon, Sun } from 'lucide-react';
 import { AboutExperience } from './components/AboutExperience';
 import { ContactSection } from './components/ContactSection';
-import { EditIntroModal } from './components/EditIntroModal';
 import { Header } from './components/Header';
 import { HomeHero } from './components/HomeHero';
 import { ResilientImage } from './components/ResilientImage';
 import { ScrollProgressBar } from './components/ScrollProgressBar';
 import { WorkShowcase } from './components/WorkShowcase';
-import { DEFAULT_HOME_PROFILE, HomeProfile } from './data/portfolioData';
+import { DEFAULT_HOME_PROFILE } from './data/portfolioData';
 
-const PROFILE_STORAGE_KEY = 'portfolio_home_profile_v4';
 const THEME_STORAGE_KEY = 'portfolio_theme';
 
 const SECTION_IDS = ['home', 'work', 'about', 'contact'] as const;
@@ -38,21 +36,8 @@ function getInitialTheme(): ThemeMode {
 
 export default function App() {
   const [theme, setTheme] = useState<ThemeMode>(getInitialTheme);
-
-  const [profile, setProfile] = useState<HomeProfile>(() => {
-    try {
-      const saved = localStorage.getItem(PROFILE_STORAGE_KEY);
-      if (saved) {
-        return { ...DEFAULT_HOME_PROFILE, ...JSON.parse(saved) };
-      }
-    } catch {
-      // Fall back to default profile if localStorage is unavailable
-    }
-    return DEFAULT_HOME_PROFILE;
-  });
-
   const [activeSection, setActiveSection] = useState<string>('home');
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const profile = DEFAULT_HOME_PROFILE;
 
   useEffect(() => {
     const root = document.documentElement;
@@ -67,14 +52,6 @@ export default function App() {
       // Ignore storage quota errors
     }
   }, [theme]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile));
-    } catch {
-      // Ignore storage quota errors
-    }
-  }, [profile]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -123,7 +100,6 @@ export default function App() {
           theme={theme}
           onToggleTheme={toggleTheme}
           onExploreWork={() => scrollToSection('work')}
-          onEditIntro={() => setIsEditModalOpen(true)}
         />
 
         {/* Editorial ribbon divider in brand Midnight Navy + Gold + Sky */}
@@ -208,23 +184,9 @@ export default function App() {
                 </>
               )}
             </button>
-            <button
-              type="button"
-              onClick={() => setIsEditModalOpen(true)}
-              className="text-[#FBBF24] hover:text-amber-300 font-medium transition-colors cursor-pointer"
-            >
-              Customize Intro
-            </button>
           </div>
         </div>
       </footer>
-
-      <EditIntroModal
-        isOpen={isEditModalOpen}
-        profile={profile}
-        onClose={() => setIsEditModalOpen(false)}
-        onSave={setProfile}
-      />
     </div>
   );
 }

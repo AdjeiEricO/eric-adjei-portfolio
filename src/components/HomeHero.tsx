@@ -6,7 +6,6 @@ import {
   Layers,
   Moon,
   Palette,
-  Pencil,
   Sun,
 } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -19,7 +18,6 @@ interface HomeHeroProps {
   theme: ThemeMode;
   onToggleTheme: () => void;
   onExploreWork: () => void;
-  onEditIntro: () => void;
 }
 
 const METRIC_STYLES = {
@@ -50,7 +48,6 @@ export function HomeHero({
   theme,
   onToggleTheme,
   onExploreWork,
-  onEditIntro,
 }: HomeHeroProps) {
   const isDark = theme === 'dark';
 
@@ -170,15 +167,6 @@ export function HomeHero({
                 <span>Direct Inquiry</span>
                 <ArrowRight className="w-4 h-4 text-sky-300" aria-hidden="true" />
               </a>
-
-              <button
-                type="button"
-                onClick={onEditIntro}
-                className="inline-flex items-center gap-1.5 px-3 py-2 min-h-[40px] text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-[#1D4ED8] dark:hover:text-[#FBBF24] transition-colors duration-150 whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] rounded-md cursor-pointer sm:ml-auto"
-              >
-                <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
-                <span>Customize Intro</span>
-              </button>
             </div>
           </motion.div>
 
