@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Moon, Sun } from 'lucide-react';
 import { AboutExperience } from './components/AboutExperience';
 import { ContactSection } from './components/ContactSection';
@@ -12,6 +12,7 @@ import { DEFAULT_HOME_PROFILE } from './data/portfolioData';
 const THEME_STORAGE_KEY = 'portfolio_theme';
 
 const SECTION_IDS = ['home', 'work', 'about', 'contact'] as const;
+type SectionId = (typeof SECTION_IDS)[number];
 
 export type ThemeMode = 'light' | 'dark';
 
@@ -36,7 +37,8 @@ function getInitialTheme(): ThemeMode {
 
 export default function App() {
   const [theme, setTheme] = useState<ThemeMode>(getInitialTheme);
-  const [activeSection, setActiveSection] = useState<string>('home');
+  const [activeSection, setActiveSection] = useState<SectionId>('home');
+  const programmaticScrollRef = useRef<{ id: SectionId; timerId: number } | null>(null);
   const profile = DEFAULT_HOME_PROFILE;
 
   useEffect(() => {
@@ -54,35 +56,184 @@ export default function App() {
   }, [theme]);
 
   useEffect(() => {
+    const entriesMap = new Map<string, IntersectionObserverEntry>();
+
+    const clearProgrammaticLock = () => {
+      if (programmaticScrollRef.current) {
+        window.clearTimeout(programmaticScrollRef.current.timerId);
+        programmaticScrollRef.current = null;
+      }
+    };
+
+    const updateActiveSection = () => {
+      if (programmaticScrollRef.current) {
+        return;
+      }
+
+      const scrollY = window.scrollY;
+      const viewportHeight = window.innerHeight;
+      const docHeight = document.documentElement.scrollHeight;
+
+      if (scrollY <= 16) {
+        setActiveSection('home');
+        return;
+      }
+
+      if (scrollY + viewportHeight >= docHeight - 40) {
+        const contactEl = document.getElementById('contact');
+        if (contactEl) {
+          const contactRect = contactEl.getBoundingClientRect();
+          if (contactRect.top < viewportHeight && contactRect.bottom > 0) {
+            setActiveSection('contact');
+            return;
+          }
+        }
+      }
+
+      const headerOffset = 73;
+      const focalY = headerOffset + Math.max(40, (viewportHeight - headerOffset) * 0.28);
+
+      let focalMatch: SectionId | null = null;
+      let largestVisibleId: SectionId | null = null;
+      let largestVisibleHeight = 0;
+
+      for (const id of SECTION_IDS) {
+        const el = document.getElementById(id);
+        if (!el) continue;
+
+        const rect = el.getBoundingClientRect();
+
+        if (rect.top <= focalY && rect.bottom > focalY) {
+          focalMatch = id;
+          break;
+        }
+
+        const entry = entriesMap.get(id);
+        const isIntersecting = entry
+          ? entry.isIntersecting
+          : rect.bottom > headerOffset && rect.top < viewportHeight;
+
+        if (isIntersecting) {
+          const visibleTop = Math.max(rect.top, headerOffset);
+          const visibleBottom = Math.min(rect.bottom, viewportHeight);
+          const visibleHeight = Math.max(0, visibleBottom - visibleTop);
+
+          if (visibleHeight > largestVisibleHeight) {
+            largestVisibleHeight = visibleHeight;
+            largestVisibleId = id;
+          }
+        }
+      }
+
+      if (focalMatch) {
+        setActiveSection(focalMatch);
+      } else if (largestVisibleId) {
+        setActiveSection(largestVisibleId);
+      }
+    };
+
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
-          if (entry.isIntersecting) {
-            setActiveSection(entry.target.id);
-          }
+          entriesMap.set(entry.target.id, entry);
         }
+        updateActiveSection();
       },
-      { rootMargin: '-35% 0px -55% 0px', threshold: 0.05 }
+      {
+        root: null,
+        rootMargin: '0px',
+        threshold: [0, 0.05, 0.1, 0.2, 0.35, 0.5, 0.75, 1],
+      }
     );
 
     for (const id of SECTION_IDS) {
       const element = document.getElementById(id);
-      if (element) observer.observe(element);
+      if (element) {
+        observer.observe(element);
+      }
     }
 
-    return () => observer.disconnect();
+    let rafId: number | null = null;
+    const handleScrollOrResize = () => {
+      if (rafId !== null) return;
+      rafId = window.requestAnimationFrame(() => {
+        rafId = null;
+        updateActiveSection();
+      });
+    };
+
+    const handleUserInterrupt = () => {
+      if (programmaticScrollRef.current) {
+        clearProgrammaticLock();
+        updateActiveSection();
+      }
+    };
+
+    const handleScrollEnd = () => {
+      if (programmaticScrollRef.current) {
+        clearProgrammaticLock();
+        updateActiveSection();
+      }
+    };
+
+    window.addEventListener('scroll', handleScrollOrResize, { passive: true });
+    window.addEventListener('resize', handleScrollOrResize, { passive: true });
+    window.addEventListener('wheel', handleUserInterrupt, { passive: true });
+    window.addEventListener('touchstart', handleUserInterrupt, { passive: true });
+    window.addEventListener('keydown', handleUserInterrupt, { passive: true });
+    window.addEventListener('scrollend', handleScrollEnd, { passive: true });
+
+    updateActiveSection();
+
+    return () => {
+      observer.disconnect();
+      clearProgrammaticLock();
+      window.removeEventListener('scroll', handleScrollOrResize);
+      window.removeEventListener('resize', handleScrollOrResize);
+      window.removeEventListener('wheel', handleUserInterrupt);
+      window.removeEventListener('touchstart', handleUserInterrupt);
+      window.removeEventListener('keydown', handleUserInterrupt);
+      window.removeEventListener('scrollend', handleScrollEnd);
+      if (rafId !== null) {
+        window.cancelAnimationFrame(rafId);
+      }
+    };
   }, []);
 
   const toggleTheme = () => {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
   };
 
-  const scrollToSection = (id: string) => {
-    const el = document.getElementById(id);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth' });
+  const scrollToSection = useCallback((id: string) => {
+    const targetId = (SECTION_IDS.includes(id as SectionId) ? id : 'home') as SectionId;
+
+    if (programmaticScrollRef.current) {
+      window.clearTimeout(programmaticScrollRef.current.timerId);
+      programmaticScrollRef.current = null;
     }
-  };
+
+    setActiveSection(targetId);
+
+    if (targetId === 'home') {
+      if (window.scrollY > 16) {
+        const timerId = window.setTimeout(() => {
+          programmaticScrollRef.current = null;
+        }, 900);
+        programmaticScrollRef.current = { id: targetId, timerId };
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+      return;
+    }
+
+    const el = document.getElementById(targetId);
+    if (el) {
+      const timerId = window.setTimeout(() => {
+        programmaticScrollRef.current = null;
+      }, 900);
+      programmaticScrollRef.current = { id: targetId, timerId };
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F1F5F9] dark:bg-[#071320] text-[#0B1F33] dark:text-slate-100 transition-colors duration-200">
@@ -91,6 +242,7 @@ export default function App() {
       <Header
         profile={profile}
         activeSection={activeSection}
+        onNavigate={scrollToSection}
         onContactClick={() => scrollToSection('contact')}
       />
 
@@ -154,16 +306,44 @@ export default function App() {
           </div>
 
           <div className="flex flex-wrap items-center gap-5">
-            <a href="#home" className="hover:text-white transition-colors">
+            <a
+              href="#home"
+              onClick={(event) => {
+                event.preventDefault();
+                scrollToSection('home');
+              }}
+              className="hover:text-white transition-colors"
+            >
               01. Home
             </a>
-            <a href="#work" className="hover:text-white transition-colors">
+            <a
+              href="#work"
+              onClick={(event) => {
+                event.preventDefault();
+                scrollToSection('work');
+              }}
+              className="hover:text-white transition-colors"
+            >
               02. Work
             </a>
-            <a href="#about" className="hover:text-white transition-colors">
+            <a
+              href="#about"
+              onClick={(event) => {
+                event.preventDefault();
+                scrollToSection('about');
+              }}
+              className="hover:text-white transition-colors"
+            >
               03. About
             </a>
-            <a href="#contact" className="hover:text-white transition-colors">
+            <a
+              href="#contact"
+              onClick={(event) => {
+                event.preventDefault();
+                scrollToSection('contact');
+              }}
+              className="hover:text-white transition-colors"
+            >
               04. Contact
             </a>
             <button

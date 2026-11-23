@@ -37,7 +37,7 @@ export function ContactSection({ profile }: ContactSectionProps) {
   return (
     <section
       id="contact"
-      className="py-16 lg:py-24 border-t border-slate-200 dark:border-[#1E3A5F] bg-white dark:bg-[#091829] transition-colors duration-200"
+      className="scroll-mt-[73px] py-16 lg:py-24 border-t border-slate-200 dark:border-[#1E3A5F] bg-white dark:bg-[#091829] transition-colors duration-200"
     >
       <div className="max-w-6xl mx-auto px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-stretch">

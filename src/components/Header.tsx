@@ -3,6 +3,7 @@ import { HomeProfile } from '../data/portfolioData';
 interface HeaderProps {
   profile: HomeProfile;
   activeSection: string;
+  onNavigate: (sectionId: string) => void;
   onContactClick: () => void;
 }
 
@@ -13,13 +14,22 @@ const NAV_ITEMS = [
   { id: 'contact', label: 'Contact' },
 ];
 
-export function Header({ profile, activeSection, onContactClick }: HeaderProps) {
+export function Header({
+  profile,
+  activeSection,
+  onNavigate,
+  onContactClick,
+}: HeaderProps) {
   return (
     <header className="sticky top-0 z-40 bg-white/92 dark:bg-[#0B1F33]/94 backdrop-blur-md border-b border-slate-200 dark:border-[#1E3A5F] transition-colors duration-200">
       <div className="max-w-6xl mx-auto px-6 lg:px-8 py-4 flex items-center justify-between gap-8">
         {/* Zone 1: Single text element wordmark */}
         <a
           href="#home"
+          onClick={(event) => {
+            event.preventDefault();
+            onNavigate('home');
+          }}
           className="font-display text-lg font-bold tracking-tight text-[#0B1F33] dark:text-white whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] dark:focus-visible:ring-[#38BDF8] focus-visible:ring-offset-4 dark:focus-visible:ring-offset-[#0B1F33] rounded-sm"
         >
           {profile.name}
@@ -36,6 +46,11 @@ export function Header({ profile, activeSection, onContactClick }: HeaderProps) 
               <a
                 key={item.id}
                 href={`#${item.id}`}
+                aria-current={isActive ? 'location' : undefined}
+                onClick={(event) => {
+                  event.preventDefault();
+                  onNavigate(item.id);
+                }}
                 className={`relative py-1 whitespace-nowrap shrink-0 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] dark:focus-visible:ring-[#38BDF8] focus-visible:ring-offset-4 dark:focus-visible:ring-offset-[#0B1F33] rounded-sm ${
                   isActive
                     ? 'text-[#1D4ED8] dark:text-[#38BDF8] font-semibold after:absolute after:left-0 after:right-0 after:-bottom-0.5 after:h-0.5 after:bg-[#D97706] dark:after:bg-[#FBBF24]'
